@@ -84,7 +84,7 @@ def write_violation(lean_dir: Path, bullet: str, w: dict) -> Path:
     out.parent.mkdir(parents=True, exist_ok=True)
     if bullet == "refunds-reference-charge":
         acct, amt, cid = w["account"], w["amount"], w["charge_id"]
-        body = f"""import HardJournal.Statements
+        body = f"""import HardJournal.Corpus
 
 /-!
   Auto-generated certificate. If this file typechecks, the PR violates
@@ -101,7 +101,7 @@ theorem violation_refunds_reference_charge :
         camt = w["charge_amt"]
         ramt = w["refund_amt"]
         id_ = w["id"]
-        body = f"""import HardJournal.Statements
+        body = f"""import HardJournal.Corpus
 
 /-!
   Auto-generated certificate. If this file typechecks, the PR violates
@@ -111,8 +111,10 @@ theorem violation_refunds_bounded :
     ¬ HardJournal.RefundsBounded HardJournal.Impl := by
   intro h
   simpa [HardJournal.Impl, HardJournal.charge, HardJournal.refund,
-         HardJournal.findCharge, HardJournal.sumRefundsFor,
-         HardJournal.sumRefunds, HardJournal.sumCharges] using
+         HardJournal.findCharge, HardJournal.findCharge_singleton_charge,
+         HardJournal.sumRefundsFor, HardJournal.sumRefunds, HardJournal.sumCharges,
+         HardJournal.sumCharges_singleton_charge,
+         HardJournal.sumRefunds_charge_then_refund] using
     h {acct} {camt} {ramt} {id_}
 """
     out.write_text(body)

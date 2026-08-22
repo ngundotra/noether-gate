@@ -79,16 +79,26 @@ def write_violation(lean_dir: Path, bullet: str, w: dict) -> Path:
     else:
         prop = "CancelOnlyOpen"
         pred = "isClosed"
-    body = f"""import MediumOrders.Statements
+    lemma = {
+        ("no-skip", "pending", "shipped"): "MediumOrders.isSkip_pending_shipped",
+        ("no-skip", "pending", "delivered"): "MediumOrders.isSkip_pending_delivered",
+        ("no-skip", "paid", "delivered"): "MediumOrders.isSkip_paid_delivered",
+        ("no-backwards", "paid", "pending"): "MediumOrders.isBackwards_paid_pending",
+        ("no-backwards", "cancelled", "paid"): "MediumOrders.isBackwards_cancelled_paid",
+        ("cancel-only-open", "shipped", "cancelled"): "MediumOrders.isClosed_shipped_cancelled",
+        ("cancel-only-open", "delivered", "cancelled"): "MediumOrders.isClosed_delivered_cancelled",
+    }.get((bullet, w["from"], w["to"]), "rfl")
+    body = f"""import MediumOrders.Corpus
 
 /-!
   Auto-generated certificate. If this file typechecks, the PR violates
   bullet `{bullet}` at {w["from"]} → {w["to"]}.
+  The `{pred}` fact comes from the corpus, not from unfolding.
 -/
 theorem violation_{bullet.replace("-", "_")} :
     ¬ MediumOrders.{prop} MediumOrders.Impl := by
   intro h
-  simpa [MediumOrders.Impl, MediumOrders.{pred}] using h {frm} {to} rfl
+  simpa [MediumOrders.Impl] using h {frm} {to} {lemma}
 """
     out.write_text(body)
     return out
