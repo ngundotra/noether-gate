@@ -9,6 +9,8 @@ It is "we could not certify a bug."
 This repo is an experimental scratch space: three examples (easy / medium / hard)
 plus a tiny corpus tool so agents can grow helper lemmas per example.
 
+How it works (diagrams, phone-friendly): [docs/how-it-works.md](docs/how-it-works.md).
+
 ## Examples
 
 | name | idea | bullets |
