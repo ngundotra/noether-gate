@@ -90,7 +90,11 @@ def mentions_impl(src: str) -> bool:
 
 
 def theorem_names(src: str) -> list[str]:
-    return re.findall(r"\b(?:theorem|lemma)\s+([A-Za-z_][A-Za-z0-9_']*)", src)
+    return re.findall(r"\b(?:theorem|lemma)\s+([A-Za-z_][A-Za-z0-9_']*)", strip_lean_comments(src))
+
+
+def has_sorry(src: str) -> bool:
+    return re.search(r"\bsorry\b", strip_lean_comments(src)) is not None
 
 
 def cmd_list(example: str) -> int:
@@ -175,13 +179,29 @@ def check_one(example: str) -> int:
     for missing in sorted(stems - imported):
         print(f"file not in barrel: Corpus/{missing}.lean")
         rc = 1
+    cited_any = False
+    writer = (EXAMPLES / example / "search.py").read_text()
+    if f"import {plug.PKG}.Corpus" not in writer:
+        print(f"search.py does not import {plug.PKG}.Corpus in a certificate")
+        rc = 1
     for p in files:
         src = p.read_text()
         if mentions_impl(src):
             print(f"Corpus/{p.name} mentions Impl (move that fact to Safe.lean)")
             rc = 1
+        if has_sorry(src):
+            print(f"Corpus/{p.name} contains sorry")
+            rc = 1
         names = theorem_names(src)
+        if not names:
+            print(f"Corpus/{p.name} has no theorem (fill the stub)")
+            rc = 1
+        if any(n in writer for n in names):
+            cited_any = True
         print(f"  {p.stem:24}  {len(names)} lemma(s)")
+    if files and not cited_any:
+        print("no corpus lemma is cited from search.py")
+        rc = 1
     if rc == 0:
         print("ok")
     return rc
@@ -214,7 +234,7 @@ def main() -> int:
     add.add_argument("--example", required=True)
     add.add_argument("--name", required=True, help="snake_case or PascalCase module name")
 
-    chk = sub.add_parser("check", help="barrel completeness + no Impl in Corpus/")
+    chk = sub.add_parser("check", help="barrel, no Impl/sorry, stub filled, cert cites corpus")
     chk.add_argument("--example")
     chk.add_argument("--all", action="store_true")
 

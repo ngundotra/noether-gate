@@ -68,7 +68,7 @@ python3 scripts/corpus.py check --all
 ```
 
 `add-lemma` writes a stub under that example's `lean/<Pkg>/Corpus/` and prints the import.
-`check` fails if a corpus file mentions `Impl` or is missing from the barrel. CI runs it.
+`check` fails if a corpus file mentions `Impl`, contains `sorry`, is an empty stub, is missing from the barrel, or is never cited from `search.py`. CI runs it.
 
 ## Agent loop
 

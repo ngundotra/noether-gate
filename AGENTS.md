@@ -28,6 +28,7 @@ Do not write essays. Do not open other repos. Stay in this tree.
 - Violation certificates: `simpa [Impl] using h nats...`. Do not add `exact this` after simp already closed.
 - Do not `sorry` a deny certificate. The kernel must accept a real proof.
 - Corpus lemmas must not mention `Impl`. The deny path mutates `Impl`; facts about the current model go in `Safe.lean`.
+- `corpus.py check` must stay green: no `sorry`, no empty stubs, certificate writers import `<Pkg>.Corpus` and cite a named lemma.
 - Prefer `import <Pkg>.Corpus` in a violation certificate and cite a named lemma. Do not only unfold `Impl`.
 - Multiple deny fixtures: put them in `bad_cases()` as `(relpath, patcher)` pairs. `--use-bad-fixture` walks all of them.
 - Tiny lemmas. One fact per file. Name them after the fact, not the ticket.

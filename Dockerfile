@@ -15,4 +15,4 @@ RUN lean --version
 
 COPY . /src
 WORKDIR /src
-CMD ["python3", "scripts/gate.py", "--all"]
+CMD ["sh", "-c", "python3 scripts/corpus.py check --all && python3 scripts/gate.py --all"]
