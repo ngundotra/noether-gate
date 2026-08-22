@@ -93,8 +93,10 @@ def write_violation(lean_dir: Path, bullet: str, w: dict) -> Path:
 theorem violation_refunds_reference_charge :
     ¬ HardJournal.RefundsReferenceCharge HardJournal.Impl := by
   intro h
-  simpa [HardJournal.Impl, HardJournal.findCharge] using
-    h [] (HardJournal.refund {acct} {amt} 99 {cid}) rfl rfl
+  have hkind : (HardJournal.refund {acct} {amt} 99 {cid}).kind = .refund := rfl
+  have hfind := HardJournal.findCharge_nil {cid}
+  simpa [HardJournal.Impl] using
+    h [] (HardJournal.refund {acct} {amt} 99 {cid}) hkind hfind
 """
     else:
         acct = w["account"]
@@ -131,3 +133,25 @@ def patch_lean_to_bad(text: str) -> str:
     if old not in text:
         return text
     return text.replace(old, new, 1)
+
+
+def patch_lean_to_orphan(text: str) -> str:
+    old = """  | .refund =>
+    match findCharge entry.chargeId journal with
+    | none => none
+    | some c =>
+      if c.account ≠ entry.account then none
+      else
+        let prior := sumRefundsFor entry.chargeId journal
+        if prior + entry.amount > c.amount then none
+        else some (journal ++ [entry])"""
+    new = """  | .refund =>
+    some (journal ++ [entry])"""
+    return text.replace(old, new, 1) if old in text else text
+
+
+def bad_cases():
+    return [
+        ("fixtures/bad_journal.py", patch_lean_to_bad),
+        ("fixtures/bad_orphan_refund.py", patch_lean_to_orphan),
+    ]

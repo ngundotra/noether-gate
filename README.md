@@ -38,6 +38,7 @@ examples/<name>/
 | `medium-orders` | `fixtures/bad_backwards.py` | `paid → pending` | `no-backwards` |
 | `medium-orders` | `fixtures/bad_cancel_closed.py` | `shipped → cancelled` | `cancel-only-open` |
 | `hard-journal` | `fixtures/bad_journal.py` | refund bigger than its charge | `refunds-bounded` |
+| `hard-journal` | `fixtures/bad_orphan_refund.py` | refund with no matching charge | `refunds-reference-charge` |
 
 ## Run the gate
 
