@@ -50,67 +50,77 @@ def lake_check(lean_dir: Path, extra: Path | None = None) -> int:
     )
 
 
+def fixture_cases(plug):
+    if hasattr(plug, "bad_cases"):
+        return list(plug.bad_cases())
+    return [(plug.BAD_IMPL, plug.patch_lean_to_bad)]
+
+
+def try_one(plug, example: str, lean_dir: Path, impl_path: Path, expect_deny: bool) -> int:
+    impl_fn = plug.load_impl(impl_path)
+    found = plug.search(impl_fn)
+
+    scratch = lean_dir / "Scratch" / "Violation.lean"
+    if scratch.exists():
+        scratch.unlink()
+
+    if found is None:
+        print(f"Noether Gate [{example}]: no witness in the small search. Building corpus.", flush=True)
+        rc = lake_check(lean_dir)
+        if rc != 0:
+            print(f"Noether Gate [{example}]: corpus failed to build.", flush=True)
+            return rc
+        if expect_deny:
+            print(f"Noether Gate [{example}]: expected a deny, found none.", flush=True)
+            return 1
+        print(f"Noether Gate [{example}]: no violation proved. Approve.", flush=True)
+        return 0
+
+    bullet, witness = found
+    print(f"Noether Gate [{example}]: Python found a witness for `{bullet}`: {witness}", flush=True)
+    print("Writing a Lean certificate and asking the kernel to accept it.", flush=True)
+    path = plug.write_violation(lean_dir, bullet, witness)
+    rc = lake_check(lean_dir, path)
+    if rc == 0:
+        print(f"Noether Gate [{example}]: Lean accepted the violation proof. Deny.", flush=True)
+        return 0 if expect_deny else 1
+    print(
+        f"Noether Gate [{example}]: witness found in Python but Lean rejected the certificate.",
+        flush=True,
+    )
+    print("That usually means the Lean model is out of sync with the implementation.", flush=True)
+    return 1
+
+
 def run_one(example: str, impl: Path | None, expect_deny: bool, use_bad: bool) -> int:
     plug = load_plugin(example)
     ex_dir: Path = EXAMPLES / example
     lean_dir: Path = ex_dir / "lean"
     statements = lean_dir / plug.STATEMENTS
     original = statements.read_text()
-    patched_ok = False
 
-    try:
-        impl_path = impl
-        if use_bad:
-            impl_path = ex_dir / plug.BAD_IMPL
-            patched = plug.patch_lean_to_bad(original)
-            if patched == original:
-                print(f"Noether Gate: patch_lean_to_bad was a no-op for {example}", flush=True)
-                return 1
+    if not use_bad:
+        impl_path = impl if impl is not None else ex_dir / plug.DEFAULT_IMPL
+        return try_one(plug, example, lean_dir, impl_path, expect_deny)
+
+    rc = 0
+    for rel, patcher in fixture_cases(plug):
+        patched = patcher(original)
+        if patched == original:
+            print(f"Noether Gate: patcher was a no-op for {example} / {rel}", flush=True)
+            return 1
+        try:
             statements.write_text(patched)
-            patched_ok = True
             print(
-                f"Noether Gate: patched {statements.relative_to(ROOT)} to match the bad fixture.",
+                f"Noether Gate: patched {statements.relative_to(ROOT)} for {rel}.",
                 flush=True,
             )
-        if impl_path is None:
-            impl_path = ex_dir / plug.DEFAULT_IMPL
-
-        impl_fn = plug.load_impl(impl_path)
-        found = plug.search(impl_fn)
-
-        scratch = lean_dir / "Scratch" / "Violation.lean"
-        if scratch.exists():
-            scratch.unlink()
-
-        if found is None:
-            print(f"Noether Gate [{example}]: no witness in the small search. Building corpus.", flush=True)
-            rc = lake_check(lean_dir)
-            if rc != 0:
-                print(f"Noether Gate [{example}]: corpus failed to build.", flush=True)
-                return rc
-            if expect_deny:
-                print(f"Noether Gate [{example}]: expected a deny, found none.", flush=True)
-                return 1
-            print(f"Noether Gate [{example}]: no violation proved. Approve.", flush=True)
-            return 0
-
-        bullet, witness = found
-        print(f"Noether Gate [{example}]: Python found a witness for `{bullet}`: {witness}", flush=True)
-        print("Writing a Lean certificate and asking the kernel to accept it.", flush=True)
-        path = plug.write_violation(lean_dir, bullet, witness)
-        rc = lake_check(lean_dir, path)
-        if rc == 0:
-            print(f"Noether Gate [{example}]: Lean accepted the violation proof. Deny.", flush=True)
-            return 0 if expect_deny else 1
-        print(
-            f"Noether Gate [{example}]: witness found in Python but Lean rejected the certificate.",
-            flush=True,
-        )
-        print("That usually means the Lean model is out of sync with the implementation.", flush=True)
-        return 1
-    finally:
-        if patched_ok:
+            one = try_one(plug, example, lean_dir, ex_dir / rel, expect_deny)
+            if one != 0:
+                rc = one
+        finally:
             statements.write_text(original)
+    return rc
 
 
 def main() -> int:

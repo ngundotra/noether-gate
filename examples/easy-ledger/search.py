@@ -62,7 +62,7 @@ def write_violation(lean_dir: Path, bullet: str, w: dict) -> Path:
     out.parent.mkdir(parents=True, exist_ok=True)
     s, d, a = w["source"], w["dest"], w["amount"]
     if bullet == "preserves-sum":
-        body = f"""import EasyLedger.Statements
+        body = f"""import EasyLedger.Corpus
 
 /-!
   Auto-generated certificate. If this file typechecks, the PR violates
@@ -70,10 +70,10 @@ def write_violation(lean_dir: Path, bullet: str, w: dict) -> Path:
 -/
 theorem violation_preserves_sum : ¬ EasyLedger.PreservesSum EasyLedger.Impl := by
   intro h
-  simpa [EasyLedger.Impl] using h {s} {d} {a}
+  simpa [EasyLedger.Impl, EasyLedger.add_one_ne] using h {s} {d} {a}
 """
     else:
-        body = f"""import EasyLedger.Statements
+        body = f"""import EasyLedger.Corpus
 
 /-!
   Auto-generated certificate. If this file typechecks, the PR violates
@@ -81,7 +81,9 @@ theorem violation_preserves_sum : ¬ EasyLedger.PreservesSum EasyLedger.Impl := 
 -/
 theorem violation_no_overdraft : ¬ EasyLedger.NoOverdraft EasyLedger.Impl := by
   intro h
-  simpa [EasyLedger.Impl] using h {s} {d} {a} (by omega)
+  have hlt : {s} < {a} := by omega
+  have nle := EasyLedger.not_le_of_lt {s} {a} hlt
+  simpa [EasyLedger.Impl, nle] using h {s} {d} {a} hlt
 """
     out.write_text(body)
     return out
@@ -89,3 +91,22 @@ theorem violation_no_overdraft : ¬ EasyLedger.NoOverdraft EasyLedger.Impl := by
 
 def patch_lean_to_bad(text: str) -> str:
     return text.replace("dest + amount)", "dest + amount + 1)", 1)
+
+
+def patch_lean_to_overdraft(text: str) -> str:
+    old = """  if amount ≤ source then
+    some (source - amount, dest + amount)
+  else
+    none"""
+    new = """  if amount ≤ source then
+    some (source - amount, dest + amount)
+  else
+    some (source, dest)"""
+    return text.replace(old, new, 1) if old in text else text
+
+
+def bad_cases():
+    return [
+        ("fixtures/bad_ledger.py", patch_lean_to_bad),
+        ("fixtures/bad_overdraft.py", patch_lean_to_overdraft),
+    ]

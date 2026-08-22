@@ -28,6 +28,13 @@ examples/<name>/
   search.py            witness search + Lean certificate writer
 ```
 
+`--use-bad-fixture` runs every pair in `search.py`'s `bad_cases()` (falls back to one `BAD_IMPL`). Easy-ledger has two:
+
+| fixture | what it does | bullet that should deny |
+|---|---|---|
+| `fixtures/bad_ledger.py` | mints `+1` on dest | `preserves-sum` |
+| `fixtures/bad_overdraft.py` | accepts an overdraft as a no-op | `no-overdraft` |
+
 ## Run the gate
 
 Lean 4.24.0 via elan (`PATH=$HOME/.elan/bin:$PATH`).
