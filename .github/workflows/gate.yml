@@ -1,0 +1,42 @@
+name: Noether Gate
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  approve-if-no-violation:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lean
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leanprover/lean-action@v1
+        with:
+          directory: lean
+      - name: Search for a proved violation
+        working-directory: .
+        run: python3 scripts/gate.py
+
+  deny-if-fixture-is-bad:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leanprover/lean-action@v1
+        with:
+          directory: lean
+          build: false
+      - name: Point the Lean model at the minting fixture
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("lean/Noether/Ledger.lean")
+          text = p.read_text()
+          # dest + amount  → dest + amount + 1, matching fixtures/bad_ledger.py
+          text = text.replace("dest + amount)", "dest + amount + 1)", 1)
+          p.write_text(text)
+          PY
+      - name: Expect Lean to accept a violation proof
+        run: python3 scripts/gate.py --impl fixtures/bad_ledger.py --expect-deny

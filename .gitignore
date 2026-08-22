@@ -1,0 +1,4 @@
+lean/.lake
+lean/Scratch
+**/__pycache__
+*.pyc
