@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Noether Gate</title>
-  <meta name="description" content="CI that denies a PR when Lean can prove it violates a human-language spec." />
+  <meta name="description" content="Python product. Lean tries to prove one bug. Agents are not in the loop yet." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
@@ -31,25 +31,35 @@
       background-size: 28px 28px;
     }
     .wrap { max-width: 980px; margin: 0 auto; padding: 22px 16px 80px; }
-    header { padding: 18px 0 8px; }
-    .kicker {
-      color: var(--lime);
-      letter-spacing: 0.18em;
-      font-size: 11px;
-      text-transform: uppercase;
-    }
+    .kicker { color: var(--lime); letter-spacing: 0.18em; font-size: 11px; text-transform: uppercase; }
     h1 {
       font-family: "Instrument Serif", Georgia, serif;
       font-weight: 400;
-      font-size: clamp(42px, 10vw, 76px);
-      line-height: 0.9;
-      margin: 10px 0 12px;
+      font-size: clamp(40px, 10vw, 72px);
+      line-height: 0.92;
+      margin: 10px 0 14px;
     }
     h1 em { font-style: italic; color: var(--lime); }
-    .lede { color: var(--muted); max-width: 36rem; line-height: 1.55; font-size: 13px; }
+    .lede { color: var(--muted); max-width: 38rem; line-height: 1.55; font-size: 13px; }
     .lede strong { color: var(--ink); font-weight: 500; }
-
-    .stamp-row { display: flex; gap: 10px; margin: 22px 0 28px; flex-wrap: wrap; }
+    h2 {
+      font-family: "Instrument Serif", Georgia, serif;
+      font-weight: 400;
+      font-size: 28px;
+      margin: 42px 0 10px;
+    }
+    .split { display: grid; gap: 10px; }
+    @media (min-width: 720px) { .split { grid-template-columns: 1fr 1fr; } .split3 { grid-template-columns: 1fr 1fr 1fr; } }
+    .card, .node, button.fix {
+      background: var(--card);
+      border: 1px solid var(--line);
+    }
+    .card { padding: 16px; }
+    .card h3 { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .card p, .how { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .yes { color: var(--lime); }
+    .no { color: var(--rose); }
+    .stamp-row { display: flex; gap: 10px; margin: 20px 0 8px; flex-wrap: wrap; }
     .stamp {
       border: 2px dashed var(--line);
       padding: 8px 12px;
@@ -61,191 +71,138 @@
     .stamp.on-deny { border-color: var(--rose); color: var(--rose); background: rgba(255,93,115,0.08); }
     .stamp.on-ok { border-color: var(--ok); color: var(--ok); background: rgba(154,255,194,0.08); }
 
-    h2 {
-      font-family: "Instrument Serif", Georgia, serif;
-      font-weight: 400;
-      font-size: 28px;
-      margin: 42px 0 12px;
-    }
-
-    .pipe {
-      display: grid;
-      gap: 8px;
-      margin: 18px 0 10px;
-    }
-    .node {
-      background: var(--card);
-      border: 1px solid var(--line);
-      padding: 14px 14px 12px;
-      position: relative;
-      overflow: hidden;
-      transition: border-color 200ms, box-shadow 200ms;
-    }
-    .node .who { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
-    .node .what { font-size: 15px; margin-top: 4px; }
-    .node .how { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
-    .node.live {
-      border-color: var(--lime);
-      box-shadow: 0 0 0 1px rgba(214,255,63,0.25), 0 0 32px rgba(214,255,63,0.08);
-    }
-    .node.deny { border-color: var(--rose); box-shadow: 0 0 0 1px rgba(255,93,115,0.3); }
-    .node.ok { border-color: var(--ok); }
-    .arrow { text-align: center; color: var(--muted); font-size: 12px; height: 16px; }
-
     .certs { display: grid; gap: 10px; }
-    @media (min-width: 720px) {
-      .certs { grid-template-columns: 1fr 1fr; }
-    }
+    @media (min-width: 720px) { .certs { grid-template-columns: 1fr 1fr; } }
     button.fix {
-      text-align: left;
-      background: var(--card);
-      border: 1px solid var(--line);
-      color: inherit;
-      padding: 14px;
-      font: inherit;
-      cursor: pointer;
-      width: 100%;
+      text-align: left; color: inherit; padding: 14px; font: inherit; cursor: pointer; width: 100%;
     }
-    button.fix:hover, button.fix.active {
-      border-color: var(--lime);
-    }
+    button.fix:hover, button.fix.active { border-color: var(--lime); }
     button.fix .ex { color: var(--cyan); font-size: 11px; }
     button.fix .title { display: block; margin: 5px 0 4px; }
     button.fix .sub { color: var(--muted); font-size: 12px; line-height: 1.4; }
 
     .readout {
-      margin-top: 16px;
-      border: 1px solid var(--line);
-      background: #080a10;
-      padding: 14px;
-      min-height: 132px;
-      font-size: 12px;
-      line-height: 1.6;
-      white-space: pre-wrap;
+      margin-top: 16px; border: 1px solid var(--line); background: #080a10;
+      padding: 14px; min-height: 132px; font-size: 12px; line-height: 1.6; white-space: pre-wrap;
     }
-    .readout .hi { color: var(--lime); }
-    .readout .bad { color: var(--rose); }
-    .readout .good { color: var(--ok); }
+    .hi { color: var(--lime); }
 
-    .split { display: grid; gap: 10px; }
-    @media (min-width: 720px) { .split { grid-template-columns: 1fr 1fr; } }
-    .card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      padding: 16px;
-    }
-    .card h3 { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; }
-    .card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .pipe { display: grid; gap: 8px; margin: 18px 0 10px; }
+    .node { padding: 14px 14px 12px; transition: border-color 200ms, box-shadow 200ms; }
+    .node .who { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+    .node .what { font-size: 15px; margin-top: 4px; }
+    .node.live { border-color: var(--lime); box-shadow: 0 0 0 1px rgba(214,255,63,0.25); }
+    .node.deny { border-color: var(--rose); }
+    .node.ok { border-color: var(--ok); }
+    .arrow { text-align: center; color: var(--muted); font-size: 12px; height: 16px; }
 
-    footer {
-      margin-top: 48px;
-      color: var(--muted);
-      font-size: 12px;
-    }
+    footer { margin-top: 48px; color: var(--muted); font-size: 12px; }
     a { color: var(--cyan); }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <header>
-      <div class="kicker">ngundotra / noether-gate</div>
-      <h1>Prove the bug,<br /><em>or get out of the way.</em></h1>
-      <p class="lede">
-        Agents write more code than a human can reason about.
-        The collaboration interface is a Lean spec, not the raw diff.
-        <strong>Noether Gate searches for a violation and asks Lean to certify it.</strong>
-        Accept the proof, deny the PR. Fail to prove a bug, stay green.
-        That green is not correctness.
-      </p>
-      <div class="stamp-row">
-        <div class="stamp" id="stamp-deny">denied</div>
-        <div class="stamp" id="stamp-ok">approved · not proven</div>
-      </div>
-    </header>
+    <div class="kicker">what this actually is</div>
+    <h1>Python ships.<br /><em>Lean only has to catch one bug.</em></h1>
+    <p class="lede">
+      We are not rewriting the product in Lean. We are not golfing proofs.
+      We are not spawning agents in CI yet.
+      <strong>A script looks for a broken spec bullet, writes a tiny Lean proof of that bug, and asks Lean if the proof is real.</strong>
+      If Lean says yes, the PR is denied. If it cannot prove a bug, the check stays green. Green is not “correct.”
+    </p>
 
-    <h2>Tap a bad fixture</h2>
-    <p class="lede">These are the actual deny fixtures in the repo. Pick one and watch the gate write a certificate.</p>
-    <div class="certs" id="fixtures"></div>
-    <div class="readout" id="log">waiting for a witness…</div>
-
-    <h2>The gate</h2>
-    <div class="pipe" id="pipe">
-      <div class="node" data-step="spec">
-        <div class="who">01  spec.md</div>
-        <div class="what">Human-language bullets</div>
-        <div class="how">preserves-sum, no-skip, refunds-bounded… the contract.</div>
+    <div class="split split3" style="margin-top:22px">
+      <div class="card">
+        <h3 class="no">Agents in CI?</h3>
+        <p>Not today. GitHub Actions runs a Python script and Lean. No model gets launched. The folder has instructions for an agent we have not plugged in yet.</p>
       </div>
-      <div class="arrow">↓</div>
-      <div class="node" data-step="search">
-        <div class="who">02  search.py</div>
-        <div class="what">Find a witness on a small grid</div>
-        <div class="how">If nothing turns up, we cannot certify a bug.</div>
+      <div class="card">
+        <h3 class="no">Theorem golf?</h3>
+        <p>No. Golf is “make this proof shorter.” This is the other game: find one ugly counterexample and get Lean to stamp it.</p>
       </div>
-      <div class="arrow">↓</div>
-      <div class="node" data-step="cert">
-        <div class="who">03  Scratch/Violation.lean</div>
-        <div class="what">theorem : ¬ Property Impl</div>
-        <div class="how">Corpus lemmas get cited here. They must not mention Impl.</div>
-      </div>
-      <div class="arrow">↓</div>
-      <div class="node" data-step="lean">
-        <div class="who">04  Lean kernel</div>
-        <div class="what">lake env lean</div>
-        <div class="how">The kernel either accepts the violation or rejects the certificate.</div>
-      </div>
-      <div class="arrow">↓</div>
-      <div class="node" data-step="verdict">
-        <div class="who">05  verdict</div>
-        <div class="what">deny or approve</div>
-        <div class="how">Approve means we failed to prove a bug. Nothing more.</div>
+      <div class="card">
+        <h3 class="yes">Reimplement in Lean?</h3>
+        <p>Only the toy model, not the product. A full Lean rewrite would be slow for real software. The product stays Python. Lean holds a small twin of it plus the spec.</p>
       </div>
     </div>
 
-    <h2>Why Corpus cannot mention Impl</h2>
-    <div class="split">
-      <div class="card">
-        <h3>Corpus/</h3>
-        <p>Generic facts. Nat cancel, skip tables, list sums. They survive the deny-path patch because they never talk about the current model.</p>
+    <h2>What an agent would do later</h2>
+    <p class="lede">Same loop a person would run. Read the bullets. Hunt for a case that breaks one. If Lean needs a helper fact, add a lemma. Stop when you have a stamped bug, or when you cannot find one.</p>
+
+    <h2>Tap a real fixture</h2>
+    <p class="lede">These are the actual bad files in the repo. The script already knows how to certify each one. An agent would be trying to invent this on a new PR.</p>
+    <div class="certs" id="fixtures"></div>
+    <div class="stamp-row">
+      <div class="stamp" id="stamp-deny">denied</div>
+      <div class="stamp" id="stamp-ok">green · bug not proven</div>
+    </div>
+    <div class="readout" id="log">pick a card</div>
+
+    <h2>The five steps</h2>
+    <div class="pipe">
+      <div class="node" data-step="spec">
+        <div class="who">01  the spec</div>
+        <div class="what">A few English bullets</div>
+        <div class="how">“Do not mint money.” “Do not skip order states.” Written for humans first.</div>
       </div>
-      <div class="card">
-        <h3>Safe.lean</h3>
-        <p>Proofs that the good Impl satisfies the bullets. Not a default Lake target. A bad PR mutates Impl; these would break if they sat on the deny path.</p>
+      <div class="arrow">↓</div>
+      <div class="node" data-step="search">
+        <div class="who">02  a small search</div>
+        <div class="what">Python tries a handful of inputs</div>
+        <div class="how">Today that search is hardcoded. Later an agent would look harder.</div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="node" data-step="cert">
+        <div class="who">03  a certificate</div>
+        <div class="what">One Lean file that says “this bug is real”</div>
+        <div class="how">It can use helper facts. Those facts cannot mention the current code, because the deny path rewrites that code on purpose.</div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="node" data-step="lean">
+        <div class="who">04  Lean itself</div>
+        <div class="what">The kernel checks the proof</div>
+        <div class="how">Not an LLM. If this step says yes, the bug is actually a bug in the model.</div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="node" data-step="verdict">
+        <div class="who">05  the PR</div>
+        <div class="what">Deny, or stay green</div>
+        <div class="how">Stay green means we failed to prove a bug. That is all it means.</div>
       </div>
     </div>
 
     <footer>
-      Source: <a href="https://github.com/ngundotra/noether-gate">github.com/ngundotra/noether-gate</a>
-      · three examples, seven deny fixtures, Lean 4.24
+      <a href="https://github.com/ngundotra/noether-gate">github.com/ngundotra/noether-gate</a>
+      · the product is Python · Lean is the spec and a small twin
     </footer>
   </div>
   <script>
     const fixtures = [
-      { ex: "easy-ledger", title: "mint +1 on dest", bullet: "preserves-sum", file: "bad_ledger.py", witness: "source=0 dest=0 amount=0 → (0, 1)", lemma: "add_one_ne" },
-      { ex: "easy-ledger", title: "overdraft as a no-op", bullet: "no-overdraft", file: "bad_overdraft.py", witness: "source=0 dest=0 amount=1 → some (0, 0)", lemma: "not_le_of_lt" },
-      { ex: "medium-orders", title: "pending jumps to shipped", bullet: "no-skip", file: "bad_orders.py", witness: "pending → shipped", lemma: "isSkip_pending_shipped" },
-      { ex: "medium-orders", title: "paid walks backwards", bullet: "no-backwards", file: "bad_backwards.py", witness: "paid → pending", lemma: "isBackwards_paid_pending" },
-      { ex: "medium-orders", title: "cancel a shipped order", bullet: "cancel-only-open", file: "bad_cancel_closed.py", witness: "shipped → cancelled", lemma: "isClosed_shipped_cancelled" },
-      { ex: "hard-journal", title: "refund bigger than charge", bullet: "refunds-bounded", file: "bad_journal.py", witness: "charge 1, refund 2", lemma: "sumRefunds_charge_then_refund" },
-      { ex: "hard-journal", title: "refund with no charge", bullet: "refunds-reference-charge", file: "bad_orphan_refund.py", witness: "apply([], refund) succeeds", lemma: "findCharge_nil" },
+      { ex: "easy ledger", title: "mints an extra coin", bullet: "do not create money", file: "bad_ledger.py", witness: "0, 0, send 0 → dest becomes 1", lemma: "n+1 is not n" },
+      { ex: "easy ledger", title: "lets you overdraft", bullet: "reject if you cannot pay", file: "bad_overdraft.py", witness: "balance 0, send 1, still accepted", lemma: "0 < 1" },
+      { ex: "orders", title: "skips paid", bullet: "do not skip a state", file: "bad_orders.py", witness: "pending goes straight to shipped", lemma: "pending→shipped is a skip" },
+      { ex: "orders", title: "walks backwards", bullet: "do not go backwards", file: "bad_backwards.py", witness: "paid goes back to pending", lemma: "paid→pending is backwards" },
+      { ex: "orders", title: "cancels after ship", bullet: "only cancel open orders", file: "bad_cancel_closed.py", witness: "shipped becomes cancelled", lemma: "shipped is closed" },
+      { ex: "journal", title: "refunds too much", bullet: "refunds stay under the charge", file: "bad_journal.py", witness: "charge 1, refund 2", lemma: "sum of refunds" },
+      { ex: "journal", title: "refund with no charge", bullet: "refund must name a real charge", file: "bad_orphan_refund.py", witness: "empty journal still takes a refund", lemma: "find charge in [] is none" },
     ];
 
     const box = document.getElementById("fixtures");
     const log = document.getElementById("log");
     const deny = document.getElementById("stamp-deny");
     const ok = document.getElementById("stamp-ok");
-    const steps = ["spec", "search", "cert", "lean", "verdict"];
     let timer = 0;
 
     const goodBtn = document.createElement("button");
     goodBtn.className = "fix";
-    goodBtn.innerHTML = `<span class="ex">easy-ledger · src/ledger.py</span><span class="title">good transfer</span><span class="sub">no witness on the grid · should stay green</span>`;
+    goodBtn.innerHTML = `<span class="ex">easy ledger · the real code</span><span class="title">a normal transfer</span><span class="sub">search finds nothing · check stays green</span>`;
     goodBtn.onclick = () => runGood(goodBtn);
     box.appendChild(goodBtn);
 
-    fixtures.forEach((f, i) => {
+    fixtures.forEach((f) => {
       const b = document.createElement("button");
       b.className = "fix";
-      b.innerHTML = `<span class="ex">${f.ex} · ${f.file}</span><span class="title">${f.title}</span><span class="sub">should deny ${f.bullet}</span>`;
+      b.innerHTML = `<span class="ex">${f.ex} · ${f.file}</span><span class="title">${f.title}</span><span class="sub">should trip: ${f.bullet}</span>`;
       b.onclick = () => run(f, b);
       box.appendChild(b);
     });
@@ -257,25 +214,14 @@
       document.querySelectorAll("button.fix").forEach(b => b.classList.remove("active"));
     }
 
-    function run(f, btn) {
+    function play(btn, lines, end) {
       clearTimeout(timer);
       clearNodes();
       btn.classList.add("active");
-      const lines = [
-        { s: "spec", t: `read SPEC.md · bullet \`${f.bullet}\`` },
-        { s: "search", t: `patched Impl to match ${f.file}\nPython witness: ${f.witness}` },
-        { s: "cert", t: `wrote Scratch/Violation.lean\ntheorem : ¬ ${f.bullet} Impl\ncited corpus lemma ${f.lemma}` },
-        { s: "lean", t: `lake env lean Scratch/Violation.lean\nkernel accepted the proof.` },
-        { s: "verdict", t: `DENY. Lean certified a violation of ${f.bullet}.` },
-      ];
       let i = 0;
       log.textContent = "";
       const tick = () => {
-        if (i >= lines.length) {
-          document.querySelector('[data-step="verdict"]').classList.add("deny");
-          deny.classList.add("on-deny");
-          return;
-        }
+        if (i >= lines.length) { end(); return; }
         const n = document.querySelector(`[data-step="${lines[i].s}"]`);
         document.querySelectorAll(".node").forEach(x => x.classList.remove("live"));
         n.classList.add("live");
@@ -286,33 +232,30 @@
       tick();
     }
 
+    function run(f, btn) {
+      play(btn, [
+        { s: "spec", t: `spec bullet: ${f.bullet}` },
+        { s: "search", t: `swap in ${f.file}\nfound a bad case: ${f.witness}` },
+        { s: "cert", t: `write a Lean file that says this case is a bug\nuses helper: ${f.lemma}` },
+        { s: "lean", t: `Lean checks that file.\nThe kernel says: yes, that is a real proof.` },
+        { s: "verdict", t: `deny the PR. we proved ${f.bullet} is broken.` },
+      ], () => {
+        document.querySelector('[data-step="verdict"]').classList.add("deny");
+        deny.classList.add("on-deny");
+      });
+    }
+
     function runGood(btn) {
-      clearTimeout(timer);
-      clearNodes();
-      btn.classList.add("active");
-      const lines = [
-        { s: "spec", t: "read SPEC.md · preserves-sum, no-overdraft" },
-        { s: "search", t: "Impl is the good model\nsmall grid: no witness" },
-        { s: "cert", t: "no Violation.lean written" },
-        { s: "lean", t: "lake build corpus only" },
-        { s: "verdict", t: "APPROVE. We could not certify a bug.\nThat is not a proof of correctness." },
-      ];
-      let i = 0;
-      log.textContent = "";
-      const tick = () => {
-        if (i >= lines.length) {
-          document.querySelector('[data-step="verdict"]').classList.add("ok");
-          ok.classList.add("on-ok");
-          return;
-        }
-        const n = document.querySelector(`[data-step="${lines[i].s}"]`);
-        document.querySelectorAll(".node").forEach(x => x.classList.remove("live"));
-        n.classList.add("live");
-        log.innerHTML += (i ? "\n" : "") + `<span class="hi">0${i+1}</span>  ${lines[i].t}`;
-        i += 1;
-        timer = setTimeout(tick, 420);
-      };
-      tick();
+      play(btn, [
+        { s: "spec", t: "spec bullets: do not mint money, do not overdraft" },
+        { s: "search", t: "the real Python is in place\nsmall search: no bad case" },
+        { s: "cert", t: "no bug file written" },
+        { s: "lean", t: "just build the helper lemmas" },
+        { s: "verdict", t: "stay green. we could not prove a bug.\nthat is not the same as proven correct." },
+      ], () => {
+        document.querySelector('[data-step="verdict"]').classList.add("ok");
+        ok.classList.add("on-ok");
+      });
     }
   </script>
 </body>
