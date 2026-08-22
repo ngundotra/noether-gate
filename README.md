@@ -1,6 +1,11 @@
 # Noether Gate
 
-CI that takes human-language bullets and tries to **prove they are violated**.
+A plugin that **retells a PR in Lean** so humans and agents can check in the understanding.
+
+Either the old rules still hold, or the PR is updating the contract and that update is the review.
+Lean cannot read the other language. The retelling is what we check in.
+
+The examples below are a lab bench for the deny path. They are not the product.
 
 If Lean accepts a proof of a violation, the PR is denied.
 If no violation is proved, the check stays green. That is not a proof of correctness.
