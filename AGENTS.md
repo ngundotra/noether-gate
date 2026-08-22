@@ -15,6 +15,7 @@ Do not write essays. Do not open other repos. Stay in this tree.
 5. If the certificate needs a helper fact about lists / filters / sums / transitions:
    - `python3 scripts/corpus.py list --example <name>`
    - `python3 scripts/corpus.py add-lemma --example <name> --name <snake_name>`
+   - `python3 scripts/corpus.py check --example <name>`
    - fill the stub, make it compile (`lake build` in that example's `lean/`)
    - import it from the certificate or from `<Pkg>.Corpus`
    - retry the gate

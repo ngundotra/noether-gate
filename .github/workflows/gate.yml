@@ -38,3 +38,10 @@ jobs:
           lint: false
       - name: Expect Lean to accept a violation proof
         run: python3 scripts/gate.py --example ${{ matrix.example }} --use-bad-fixture --expect-deny
+
+  corpus-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Corpus must stay Impl-free and fully imported
+        run: python3 scripts/corpus.py check --all

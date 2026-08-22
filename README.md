@@ -64,9 +64,11 @@ python3 scripts/gate.py --example hard-journal --use-bad-fixture --expect-deny
 ```bash
 python3 scripts/corpus.py list --example hard-journal
 python3 scripts/corpus.py add-lemma --example hard-journal --name filter_sum_le
+python3 scripts/corpus.py check --all
 ```
 
 `add-lemma` writes a stub under that example's `lean/<Pkg>/Corpus/` and prints the import.
+`check` fails if a corpus file mentions `Impl` or is missing from the barrel. CI runs it.
 
 ## Agent loop
 

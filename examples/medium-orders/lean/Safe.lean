@@ -6,6 +6,10 @@ import MediumOrders.Statements
 -/
 namespace MediumOrders
 
+@[simp] theorem pending_to_paid : Impl .pending .paid = some .paid := rfl
+@[simp] theorem paid_to_shipped : Impl .paid .shipped = some .shipped := rfl
+@[simp] theorem shipped_to_delivered : Impl .shipped .delivered = some .delivered := rfl
+
 theorem impl_no_skip : NoSkip Impl := by
   intro frm to h
   cases frm <;> cases to <;> simp [isSkip] at h <;> simp [Impl]
