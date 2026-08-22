@@ -1,7 +1,9 @@
-# Spec
+# Spec — easy-ledger
 
-Human language. The gate tries to **prove a violation** of these bullets on every PR.
+Human language. The gate tries to **prove a violation** of these bullets.
 If Lean accepts a proof that a bullet fails, the PR is denied.
+
+A transfer moves `amount` from `source` to `dest` on a pair of Nat balances.
 
 | id | Bullet |
 |---|---|

@@ -1,6 +1,0 @@
-name = "noether"
-defaultTargets = ["Noether"]
-
-[[lean_lib]]
-name = "Noether"
-srcDir = "."

@@ -1,4 +1,4 @@
-lean/.lake
-lean/Scratch
+**/.lake
+**/Scratch
 **/__pycache__
 *.pyc

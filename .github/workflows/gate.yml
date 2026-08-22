@@ -8,35 +8,29 @@ on:
 jobs:
   approve-if-no-violation:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: lean
+    strategy:
+      fail-fast: false
+      matrix:
+        example: [easy-ledger, medium-orders, hard-journal]
     steps:
       - uses: actions/checkout@v4
       - uses: leanprover/lean-action@v1
         with:
-          directory: lean
+          directory: examples/${{ matrix.example }}/lean
       - name: Search for a proved violation
-        working-directory: .
-        run: python3 scripts/gate.py
+        run: python3 scripts/gate.py --example ${{ matrix.example }}
 
   deny-if-fixture-is-bad:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        example: [easy-ledger, medium-orders, hard-journal]
     steps:
       - uses: actions/checkout@v4
       - uses: leanprover/lean-action@v1
         with:
-          directory: lean
+          directory: examples/${{ matrix.example }}/lean
           build: false
-      - name: Point the Lean model at the minting fixture
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path("lean/Noether/Ledger.lean")
-          text = p.read_text()
-          # dest + amount  → dest + amount + 1, matching fixtures/bad_ledger.py
-          text = text.replace("dest + amount)", "dest + amount + 1)", 1)
-          p.write_text(text)
-          PY
       - name: Expect Lean to accept a violation proof
-        run: python3 scripts/gate.py --impl fixtures/bad_ledger.py --expect-deny
+        run: python3 scripts/gate.py --example ${{ matrix.example }} --use-bad-fixture --expect-deny

@@ -10,133 +10,153 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-LEAN_DIR = ROOT / "lean"
-DEFAULT_IMPL = ROOT / "example" / "ledger.py"
+EXAMPLES = ROOT / "examples"
 
 
-def load_transfer(path: Path):
-    spec = importlib.util.spec_from_file_location("ledger", path)
+PREFERRED = ["easy-ledger", "medium-orders", "hard-journal"]
+
+
+def discover() -> list[str]:
+    names = []
+    if not EXAMPLES.is_dir():
+        return names
+    for p in sorted(EXAMPLES.iterdir()):
+        if p.is_dir() and (p / "SPEC.md").exists() and (p / "search.py").exists():
+            names.append(p.name)
+    head = [n for n in PREFERRED if n in names]
+    tail = [n for n in names if n not in PREFERRED]
+    return head + tail
+
+
+def load_plugin(example: str):
+    path = EXAMPLES / example / "search.py"
+    if not path.is_file():
+        raise SystemExit(f"unknown example {example!r}. have: {discover()}")
+    spec = importlib.util.spec_from_file_location(f"noether_{example.replace('-', '_')}", path)
     if spec is None or spec.loader is None:
         raise SystemExit(f"cannot load {path}")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    if not hasattr(mod, "transfer"):
-        raise SystemExit(f"{path} has no transfer()")
-    return mod.transfer
+    return mod
 
 
-def search(transfer):
-    """Tiny exhaustive search. Returns (bullet_id, witness) or None."""
-    for source in range(0, 8):
-        for dest in range(0, 8):
-            for amount in range(0, 8):
-                out = transfer(source, dest, amount)
-                if amount > source:
-                    if out is not None:
-                        return "no-overdraft", {
-                            "source": source,
-                            "dest": dest,
-                            "amount": amount,
-                            "kind": "expected_none",
-                        }
-                    continue
-                if out is None:
-                    return "no-overdraft", {
-                        "source": source,
-                        "dest": dest,
-                        "amount": amount,
-                        "kind": "unexpected_none",
-                    }
-                s2, d2 = out
-                if s2 + d2 != source + dest:
-                    return "preserves-sum", {
-                        "source": source,
-                        "dest": dest,
-                        "amount": amount,
-                        "got": (s2, d2),
-                        "kind": "sum",
-                    }
-    return None
-
-
-def write_violation_lean(bullet: str, w: dict) -> Path:
-    out = LEAN_DIR / "Scratch" / "Violation.lean"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    s, d, a = w["source"], w["dest"], w["amount"]
-    if bullet == "preserves-sum":
-        body = f"""import Noether.Ledger
-
-/-!
-  Auto-generated certificate. If this file typechecks, the PR violates
-  bullet `preserves-sum` at source={s} dest={d} amount={a}.
--/
-theorem violation_preserves_sum : ¬ Noether.Ledger.PreservesSum Noether.Ledger.Impl := by
-  intro h
-  simpa [Noether.Ledger.Impl] using h {s} {d} {a}
-"""
-    else:
-        body = f"""import Noether.Ledger
-
-/-!
-  Auto-generated certificate. If this file typechecks, the PR violates
-  bullet `no-overdraft` at source={s} dest={d} amount={a}.
--/
-theorem violation_no_overdraft : ¬ Noether.Ledger.NoOverdraft Noether.Ledger.Impl := by
-  intro h
-  have := h {s} {d} {a} (by omega)
-  simpa [Noether.Ledger.Impl] using this
-"""
-    out.write_text(body)
-    return out
-
-
-def lake_build(extra: Path | None = None) -> int:
-    rc = subprocess.call(["lake", "build"], cwd=LEAN_DIR)
+def lake_check(lean_dir: Path, extra: Path | None = None) -> int:
+    rc = subprocess.call(["lake", "build"], cwd=lean_dir)
     if rc != 0 or extra is None:
         return rc
-    return subprocess.call(["lake", "env", "lean", str(extra.relative_to(LEAN_DIR))], cwd=LEAN_DIR)
+    return subprocess.call(
+        ["lake", "env", "lean", str(extra.relative_to(lean_dir))],
+        cwd=lean_dir,
+    )
+
+
+def run_one(example: str, impl: Path | None, expect_deny: bool, use_bad: bool) -> int:
+    plug = load_plugin(example)
+    ex_dir: Path = EXAMPLES / example
+    lean_dir: Path = ex_dir / "lean"
+    statements = lean_dir / plug.STATEMENTS
+    original = statements.read_text()
+    patched_ok = False
+
+    try:
+        impl_path = impl
+        if use_bad:
+            impl_path = ex_dir / plug.BAD_IMPL
+            patched = plug.patch_lean_to_bad(original)
+            if patched == original:
+                print(f"Noether Gate: patch_lean_to_bad was a no-op for {example}", flush=True)
+                return 1
+            statements.write_text(patched)
+            patched_ok = True
+            print(
+                f"Noether Gate: patched {statements.relative_to(ROOT)} to match the bad fixture.",
+                flush=True,
+            )
+        if impl_path is None:
+            impl_path = ex_dir / plug.DEFAULT_IMPL
+
+        impl_fn = plug.load_impl(impl_path)
+        found = plug.search(impl_fn)
+
+        scratch = lean_dir / "Scratch" / "Violation.lean"
+        if scratch.exists():
+            scratch.unlink()
+
+        if found is None:
+            print(f"Noether Gate [{example}]: no witness in the small search. Building corpus.", flush=True)
+            rc = lake_check(lean_dir)
+            if rc != 0:
+                print(f"Noether Gate [{example}]: corpus failed to build.", flush=True)
+                return rc
+            if expect_deny:
+                print(f"Noether Gate [{example}]: expected a deny, found none.", flush=True)
+                return 1
+            print(f"Noether Gate [{example}]: no violation proved. Approve.", flush=True)
+            return 0
+
+        bullet, witness = found
+        print(f"Noether Gate [{example}]: Python found a witness for `{bullet}`: {witness}", flush=True)
+        print("Writing a Lean certificate and asking the kernel to accept it.", flush=True)
+        path = plug.write_violation(lean_dir, bullet, witness)
+        rc = lake_check(lean_dir, path)
+        if rc == 0:
+            print(f"Noether Gate [{example}]: Lean accepted the violation proof. Deny.", flush=True)
+            return 0 if expect_deny else 1
+        print(
+            f"Noether Gate [{example}]: witness found in Python but Lean rejected the certificate.",
+            flush=True,
+        )
+        print("That usually means the Lean model is out of sync with the implementation.", flush=True)
+        return 1
+    finally:
+        if patched_ok:
+            statements.write_text(original)
 
 
 def main() -> int:
     p = argparse.ArgumentParser(description="Noether Gate")
-    p.add_argument("--impl", type=Path, default=DEFAULT_IMPL)
+    p.add_argument("--example", help="example directory name under examples/")
+    p.add_argument("--all", action="store_true", help="run every discovered example")
+    p.add_argument("--list", action="store_true", help="print discovered examples")
+    p.add_argument("--impl", type=Path, help="override product implementation")
     p.add_argument(
         "--expect-deny",
         action="store_true",
         help="Exit 0 only if a violation is proved (used by the bad-fixture job).",
     )
+    p.add_argument(
+        "--use-bad-fixture",
+        action="store_true",
+        help="Patch Lean Impl to the bad model and search the example's fixtures/bad_*.",
+    )
     args = p.parse_args()
 
-    transfer = load_transfer(args.impl)
-    found = search(transfer)
+    names = discover()
+    if args.list:
+        for n in names:
+            print(n)
+        return 0 if names else 1
 
-    scratch = LEAN_DIR / "Scratch" / "Violation.lean"
-    if scratch.exists():
-        scratch.unlink()
+    if args.example and args.all:
+        print("pass only one of --example / --all")
+        return 2
 
-    if found is None:
-        print("Noether Gate: no witness in the small search. Building corpus.")
-        rc = lake_build()
-        if rc != 0:
-            print("Noether Gate: corpus failed to build.")
-            return rc
-        if args.expect_deny:
-            print("Noether Gate: expected a deny, found none.")
-            return 1
-        print("Noether Gate: no violation proved. Approve.")
-        return 0
+    if args.example:
+        targets = [args.example]
+    elif args.all:
+        targets = names
+    else:
+        print("usage: python3 scripts/gate.py --example <name> | --all")
+        print("examples:", ", ".join(names) or "(none)")
+        return 2
 
-    bullet, witness = found
-    print(f"Noether Gate: Python found a witness for `{bullet}`: {witness}")
-    print("Writing a Lean certificate and asking the kernel to accept it.")
-    path = write_violation_lean(bullet, witness)
-    rc = lake_build(path)
-    if rc == 0:
-        print("Noether Gate: Lean accepted the violation proof. Deny.")
-        return 0 if args.expect_deny else 1
-    print("Noether Gate: witness found in Python but Lean rejected the certificate.")
-    print("That usually means the Lean model is out of sync with the implementation.")
-    return 1
+    rc = 0
+    for name in targets:
+        print(f"======== {name} ========", flush=True)
+        one = run_one(name, args.impl, args.expect_deny, args.use_bad_fixture)
+        if one != 0:
+            rc = one
+    return rc
 
 
 if __name__ == "__main__":

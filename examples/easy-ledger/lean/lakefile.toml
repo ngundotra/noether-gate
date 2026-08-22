@@ -1,0 +1,6 @@
+name = "easyledger"
+defaultTargets = ["EasyLedger"]
+
+[[lean_lib]]
+name = "EasyLedger"
+srcDir = "."

@@ -1,16 +1,13 @@
 /-!
-  Corpus for the ledger example.
+  Statements for easy-ledger.
 
-  `Impl` is the Lean model of `example/ledger.py`.
-  Keep them in lockstep. The gate searches for a witness that `Impl`
-  violates a bullet, then asks Lean to certify that witness.
-
+  `Impl` is the Lean model of `src/ledger.py`. Keep them in lockstep.
   This file is *statements only*. Proofs that Impl is safe live in
-  `Noether/Safe.lean` and are not part of the deny path.
+  `Safe.lean` and are not part of the default library.
 -/
-namespace Noether.Ledger
+namespace EasyLedger
 
-/-- Model of `example/ledger.py`. -/
+/-- Model of `src/ledger.py`. -/
 def Impl (source dest amount : Nat) : Option (Nat × Nat) :=
   if amount ≤ source then
     some (source - amount, dest + amount)
@@ -28,4 +25,4 @@ def PreservesSum (f : Nat → Nat → Nat → Option (Nat × Nat)) : Prop :=
 def NoOverdraft (f : Nat → Nat → Nat → Option (Nat × Nat)) : Prop :=
   ∀ source dest amount, source < amount → f source dest amount = none
 
-end Noether.Ledger
+end EasyLedger

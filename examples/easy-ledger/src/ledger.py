@@ -1,4 +1,4 @@
-"""Tiny product. The Lean model in lean/Noether/Ledger.lean must stay in sync."""
+"""Tiny product. Lean model: examples/easy-ledger/lean/EasyLedger/Statements.lean."""
 
 from typing import Optional, Tuple
 

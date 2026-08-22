@@ -1,11 +1,11 @@
-import Noether.Ledger
+import EasyLedger.Statements
+import EasyLedger.Corpus
 
 /-!
   Optional proofs that the current model satisfies the bullets.
-  Not imported by the default library, so a bad PR can still
-  produce a violation certificate.
+  Not a default Lake target, so a bad PR can still produce a violation certificate.
 -/
-namespace Noether.Ledger
+namespace EasyLedger
 
 theorem impl_preserves_sum : PreservesSum Impl := by
   intro source dest amount
@@ -18,4 +18,4 @@ theorem impl_no_overdraft : NoOverdraft Impl := by
   unfold Impl
   simp [h]
 
-end Noether.Ledger
+end EasyLedger

@@ -1,0 +1,6 @@
+name = "mediumorders"
+defaultTargets = ["MediumOrders"]
+
+[[lean_lib]]
+name = "MediumOrders"
+srcDir = "."

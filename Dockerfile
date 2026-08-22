@@ -10,10 +10,9 @@ RUN curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init
     | sh -s -- -y --default-toolchain leanprover/lean4:v4.24.0
 
 WORKDIR /src
-COPY lean/lean-toolchain lean/lean-toolchain
-# Warm the toolchain so CI/sandbox does not download on every run.
+COPY examples/easy-ledger/lean/lean-toolchain examples/easy-ledger/lean/lean-toolchain
 RUN lean --version
 
 COPY . /src
 WORKDIR /src
-CMD ["python3", "scripts/gate.py"]
+CMD ["python3", "scripts/gate.py", "--all"]

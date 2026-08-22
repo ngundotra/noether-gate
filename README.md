@@ -1,60 +1,82 @@
 # Noether Gate
 
-CI that takes human-language bullets and tries to **prove they are violated** on every PR.
+CI that takes human-language bullets and tries to **prove they are violated**.
 
 If Lean accepts a proof of a violation, the PR is denied.
-If no violation is proved, the check stays green. That is not a proof of correctness. It is "we could not certify a bug."
+If no violation is proved, the check stays green. That is not a proof of correctness.
+It is "we could not certify a bug."
 
-## Why this shape
+This repo is an experimental scratch space: three examples (easy / medium / hard)
+plus a tiny corpus tool so agents can grow helper lemmas per example.
 
-Agents write more code than anyone can review. The useful CI question is not "did an agent write a correctness proof?" (hard, often `sorry`). It is "can an agent, in a Lean sandbox, produce a short proof that this PR breaks a named bullet?"
+## Examples
 
-That is Lean golf aimed at the diff: search for a small violation certificate, kernel-check it, deny on success.
+| name | idea | bullets |
+|---|---|---|
+| `easy-ledger` | Nat transfer | `preserves-sum`, `no-overdraft` |
+| `medium-orders` | order state machine | `no-skip`, `no-backwards`, `cancel-only-open` |
+| `hard-journal` | charges + refunds | `refunds-reference-charge`, `refunds-bounded` |
 
-## First example
+Each example is self-contained:
 
-`SPEC.md` has two bullets about a tiny ledger.
+```
+examples/<name>/
+  SPEC.md              human bullets
+  src/                 tiny product
+  fixtures/bad_*       should deny
+  lean/                statements + Corpus/ lemmas + optional Safe.lean
+  search.py            witness search + Lean certificate writer
+```
 
-| id | Bullet |
-|---|---|
-| preserves-sum | A transfer must not create or destroy money |
-| no-overdraft | Overdrafts are rejected |
+## Run the gate
 
-`example/ledger.py` is the product. `lean/Noether/Ledger.lean` is the corpus: a Lean model of that function plus the two properties.
+Lean 4.24.0 via elan (`PATH=$HOME/.elan/bin:$PATH`).
+
+```bash
+python3 scripts/gate.py --example easy-ledger
+python3 scripts/gate.py --example medium-orders
+python3 scripts/gate.py --example hard-journal
+python3 scripts/gate.py --all
+```
+
+Bad fixtures (exit 0 only if Lean accepts a violation certificate):
+
+```bash
+python3 scripts/gate.py --example easy-ledger --use-bad-fixture --expect-deny
+python3 scripts/gate.py --example medium-orders --use-bad-fixture --expect-deny
+python3 scripts/gate.py --example hard-journal --use-bad-fixture --expect-deny
+```
+
+## Grow the corpus
+
+```bash
+python3 scripts/corpus.py list --example hard-journal
+python3 scripts/corpus.py add-lemma --example hard-journal --name filter_sum_le
+```
+
+`add-lemma` writes a stub under that example's `lean/<Pkg>/Corpus/` and prints the import.
+
+## Agent loop
+
+See `AGENTS.md`. Short version: read `SPEC.md` + `src/`, search for a violation,
+add a helper lemma via the corpus tool if the certificate needs it, retry.
+Do not write essays.
+
+## What a deny looks like
 
 On each run, `scripts/gate.py`:
 
 1. Searches a small input grid in Python for a witness.
-2. If it finds one, writes `lean/Scratch/Violation.lean` — a theorem `¬ Property Impl` at that witness.
-3. Runs `lake build`. If the kernel accepts the theorem, exit 1 (deny).
+2. If it finds one, writes `lean/Scratch/Violation.lean` — a theorem `¬ Property Impl`.
+3. Runs `lake env lean` on that file. If the kernel accepts it, exit 1 (deny).
 
-The bad fixture `fixtures/bad_ledger.py` mints one extra coin. CI has a job that expects that path to deny.
+Statements live in the default library. Optional safety proofs are in `Safe.lean`
+and are **not** part of the default target, so a bad fixture can mutate `Impl`
+without breaking `impl_satisfies` theorems.
 
 ## Sandbox
-
-`Dockerfile` is a Lean 4.24 image with Python. Locally:
 
 ```bash
 docker build -t noether-gate .
 docker run --rm -v "$PWD":/src noether-gate
 ```
-
-Or without Docker, if you have [elan](https://github.com/leanprover/elan):
-
-```bash
-python3 scripts/gate.py
-python3 scripts/gate.py --impl fixtures/bad_ledger.py --expect-deny
-```
-
-## What we are trying to learn
-
-| Question | This experiment |
-|---|---|
-| Can Lean be the deny-certificate, not the whole correctness proof? | Yes, that is the point |
-| Can we start from English bullets? | The bullets live in `SPEC.md`. The Lean props are maintained by hand in v0 |
-| Will the Lean model drift from the code? | Almost certainly. The gate already fails closed if Python sees a bug the model cannot certify |
-| Do we need a real LLM agent yet? | Not for this example. The search is exhaustive and tiny. Next step is an agent that golfs harder violations and keeps the model in sync |
-
-## Status
-
-First example. Play with it. If this is the wrong way to use Lean, that is the finding.

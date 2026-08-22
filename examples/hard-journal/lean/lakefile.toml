@@ -1,0 +1,6 @@
+name = "hardjournal"
+defaultTargets = ["HardJournal"]
+
+[[lean_lib]]
+name = "HardJournal"
+srcDir = "."
