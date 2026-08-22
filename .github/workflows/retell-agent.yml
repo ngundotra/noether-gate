@@ -1,0 +1,40 @@
+name: Spawn retell agent
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  spawn:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Spawn a Cursor cloud agent
+        id: spawn
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 scripts/spawn_retell_agent.py
+      - name: Comment the agent link
+        if: success() && steps.spawn.outputs.agent_url != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = '${{ steps.spawn.outputs.agent_url }}';
+            const id = '${{ steps.spawn.outputs.agent_id }}';
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `A cloud agent is retelling this PR in Lean.\n\n[${id}](${url})\n\nWhen it finishes, review the retelling, not the raw diff. Ending should be **still matches** or **rules changed**.`,
+            });
+      - name: Secret missing
+        if: failure()
+        run: |
+          echo "Add repo secret CURSOR_API_KEY from https://cursor.com/dashboard/api"
+          echo "Until then, launch the same agent by hand from Cursor."
+          exit 0
