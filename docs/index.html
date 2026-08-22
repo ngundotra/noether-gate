@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Noether Gate</title>
+  <meta name="description" content="CI that denies a PR when Lean can prove it violates a human-language spec." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #07080b;
+      --ink: #e9edf2;
+      --muted: #8b95a3;
+      --line: #1c2230;
+      --card: #0e1118;
+      --lime: #d6ff3f;
+      --cyan: #6fe8ff;
+      --rose: #ff5d73;
+      --ok: #9affc2;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--ink); }
+    body {
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      min-height: 100dvh;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 22px 16px 80px; }
+    header { padding: 18px 0 8px; }
+    .kicker {
+      color: var(--lime);
+      letter-spacing: 0.18em;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    h1 {
+      font-family: "Instrument Serif", Georgia, serif;
+      font-weight: 400;
+      font-size: clamp(42px, 10vw, 76px);
+      line-height: 0.9;
+      margin: 10px 0 12px;
+    }
+    h1 em { font-style: italic; color: var(--lime); }
+    .lede { color: var(--muted); max-width: 36rem; line-height: 1.55; font-size: 13px; }
+    .lede strong { color: var(--ink); font-weight: 500; }
+
+    .stamp-row { display: flex; gap: 10px; margin: 22px 0 28px; flex-wrap: wrap; }
+    .stamp {
+      border: 2px dashed var(--line);
+      padding: 8px 12px;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .stamp.on-deny { border-color: var(--rose); color: var(--rose); background: rgba(255,93,115,0.08); }
+    .stamp.on-ok { border-color: var(--ok); color: var(--ok); background: rgba(154,255,194,0.08); }
+
+    h2 {
+      font-family: "Instrument Serif", Georgia, serif;
+      font-weight: 400;
+      font-size: 28px;
+      margin: 42px 0 12px;
+    }
+
+    .pipe {
+      display: grid;
+      gap: 8px;
+      margin: 18px 0 10px;
+    }
+    .node {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 14px 14px 12px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 200ms, box-shadow 200ms;
+    }
+    .node .who { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+    .node .what { font-size: 15px; margin-top: 4px; }
+    .node .how { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
+    .node.live {
+      border-color: var(--lime);
+      box-shadow: 0 0 0 1px rgba(214,255,63,0.25), 0 0 32px rgba(214,255,63,0.08);
+    }
+    .node.deny { border-color: var(--rose); box-shadow: 0 0 0 1px rgba(255,93,115,0.3); }
+    .node.ok { border-color: var(--ok); }
+    .arrow { text-align: center; color: var(--muted); font-size: 12px; height: 16px; }
+
+    .certs { display: grid; gap: 10px; }
+    @media (min-width: 720px) {
+      .certs { grid-template-columns: 1fr 1fr; }
+    }
+    button.fix {
+      text-align: left;
+      background: var(--card);
+      border: 1px solid var(--line);
+      color: inherit;
+      padding: 14px;
+      font: inherit;
+      cursor: pointer;
+      width: 100%;
+    }
+    button.fix:hover, button.fix.active {
+      border-color: var(--lime);
+    }
+    button.fix .ex { color: var(--cyan); font-size: 11px; }
+    button.fix .title { display: block; margin: 5px 0 4px; }
+    button.fix .sub { color: var(--muted); font-size: 12px; line-height: 1.4; }
+
+    .readout {
+      margin-top: 16px;
+      border: 1px solid var(--line);
+      background: #080a10;
+      padding: 14px;
+      min-height: 132px;
+      font-size: 12px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    .readout .hi { color: var(--lime); }
+    .readout .bad { color: var(--rose); }
+    .readout .good { color: var(--ok); }
+
+    .split { display: grid; gap: 10px; }
+    @media (min-width: 720px) { .split { grid-template-columns: 1fr 1fr; } }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 16px;
+    }
+    .card h3 { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; }
+    .card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+    footer {
+      margin-top: 48px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    a { color: var(--cyan); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="kicker">ngundotra / noether-gate</div>
+      <h1>Prove the bug,<br /><em>or get out of the way.</em></h1>
+      <p class="lede">
+        Agents write more code than a human can reason about.
+        The collaboration interface is a Lean spec, not the raw diff.
+        <strong>Noether Gate searches for a violation and asks Lean to certify it.</strong>
+        Accept the proof, deny the PR. Fail to prove a bug, stay green.
+        That green is not correctness.
+      </p>
+      <div class="stamp-row">
+        <div class="stamp" id="stamp-deny">denied</div>
+        <div class="stamp" id="stamp-ok">approved · not proven</div>
+      </div>
+    </header>
+
+    <h2>Tap a bad fixture</h2>
+    <p class="lede">These are the actual deny fixtures in the repo. Pick one and watch the gate write a certificate.</p>
+    <div class="certs" id="fixtures"></div>
+    <div class="readout" id="log">waiting for a witness…</div>
+
+    <h2>The gate</h2>
+    <div class="pipe" id="pipe">
+      <div class="node" data-step="spec">
+        <div class="who">01  spec.md</div>
+        <div class="what">Human-language bullets</div>
+        <div class="how">preserves-sum, no-skip, refunds-bounded… the contract.</div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="node" data-step="search">
+        <div class="who">02  search.py</div>
+        <div class="what">Find a witness on a small grid</div>
+        <div class="how">If nothing turns up, we cannot certify a bug.</div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="node" data-step="cert">
+        <div class="who">03  Scratch/Violation.lean</div>
+        <div class="what">theorem : ¬ Property Impl</div>
+        <div class="how">Corpus lemmas get cited here. They must not mention Impl.</div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="node" data-step="lean">
+        <div class="who">04  Lean kernel</div>
+        <div class="what">lake env lean</div>
+        <div class="how">The kernel either accepts the violation or rejects the certificate.</div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="node" data-step="verdict">
+        <div class="who">05  verdict</div>
+        <div class="what">deny or approve</div>
+        <div class="how">Approve means we failed to prove a bug. Nothing more.</div>
+      </div>
+    </div>
+
+    <h2>Why Corpus cannot mention Impl</h2>
+    <div class="split">
+      <div class="card">
+        <h3>Corpus/</h3>
+        <p>Generic facts. Nat cancel, skip tables, list sums. They survive the deny-path patch because they never talk about the current model.</p>
+      </div>
+      <div class="card">
+        <h3>Safe.lean</h3>
+        <p>Proofs that the good Impl satisfies the bullets. Not a default Lake target. A bad PR mutates Impl; these would break if they sat on the deny path.</p>
+      </div>
+    </div>
+
+    <footer>
+      Source: <a href="https://github.com/ngundotra/noether-gate">github.com/ngundotra/noether-gate</a>
+      · three examples, seven deny fixtures, Lean 4.24
+    </footer>
+  </div>
+  <script>
+    const fixtures = [
+      { ex: "easy-ledger", title: "mint +1 on dest", bullet: "preserves-sum", file: "bad_ledger.py", witness: "source=0 dest=0 amount=0 → (0, 1)", lemma: "add_one_ne" },
+      { ex: "easy-ledger", title: "overdraft as a no-op", bullet: "no-overdraft", file: "bad_overdraft.py", witness: "source=0 dest=0 amount=1 → some (0, 0)", lemma: "not_le_of_lt" },
+      { ex: "medium-orders", title: "pending jumps to shipped", bullet: "no-skip", file: "bad_orders.py", witness: "pending → shipped", lemma: "isSkip_pending_shipped" },
+      { ex: "medium-orders", title: "paid walks backwards", bullet: "no-backwards", file: "bad_backwards.py", witness: "paid → pending", lemma: "isBackwards_paid_pending" },
+      { ex: "medium-orders", title: "cancel a shipped order", bullet: "cancel-only-open", file: "bad_cancel_closed.py", witness: "shipped → cancelled", lemma: "isClosed_shipped_cancelled" },
+      { ex: "hard-journal", title: "refund bigger than charge", bullet: "refunds-bounded", file: "bad_journal.py", witness: "charge 1, refund 2", lemma: "sumRefunds_charge_then_refund" },
+      { ex: "hard-journal", title: "refund with no charge", bullet: "refunds-reference-charge", file: "bad_orphan_refund.py", witness: "apply([], refund) succeeds", lemma: "findCharge_nil" },
+    ];
+
+    const box = document.getElementById("fixtures");
+    const log = document.getElementById("log");
+    const deny = document.getElementById("stamp-deny");
+    const ok = document.getElementById("stamp-ok");
+    const steps = ["spec", "search", "cert", "lean", "verdict"];
+    let timer = 0;
+
+    const goodBtn = document.createElement("button");
+    goodBtn.className = "fix";
+    goodBtn.innerHTML = `<span class="ex">easy-ledger · src/ledger.py</span><span class="title">good transfer</span><span class="sub">no witness on the grid · should stay green</span>`;
+    goodBtn.onclick = () => runGood(goodBtn);
+    box.appendChild(goodBtn);
+
+    fixtures.forEach((f, i) => {
+      const b = document.createElement("button");
+      b.className = "fix";
+      b.innerHTML = `<span class="ex">${f.ex} · ${f.file}</span><span class="title">${f.title}</span><span class="sub">should deny ${f.bullet}</span>`;
+      b.onclick = () => run(f, b);
+      box.appendChild(b);
+    });
+
+    function clearNodes() {
+      document.querySelectorAll(".node").forEach(n => n.classList.remove("live", "deny", "ok"));
+      deny.classList.remove("on-deny");
+      ok.classList.remove("on-ok");
+      document.querySelectorAll("button.fix").forEach(b => b.classList.remove("active"));
+    }
+
+    function run(f, btn) {
+      clearTimeout(timer);
+      clearNodes();
+      btn.classList.add("active");
+      const lines = [
+        { s: "spec", t: `read SPEC.md · bullet \`${f.bullet}\`` },
+        { s: "search", t: `patched Impl to match ${f.file}\nPython witness: ${f.witness}` },
+        { s: "cert", t: `wrote Scratch/Violation.lean\ntheorem : ¬ ${f.bullet} Impl\ncited corpus lemma ${f.lemma}` },
+        { s: "lean", t: `lake env lean Scratch/Violation.lean\nkernel accepted the proof.` },
+        { s: "verdict", t: `DENY. Lean certified a violation of ${f.bullet}.` },
+      ];
+      let i = 0;
+      log.textContent = "";
+      const tick = () => {
+        if (i >= lines.length) {
+          document.querySelector('[data-step="verdict"]').classList.add("deny");
+          deny.classList.add("on-deny");
+          return;
+        }
+        const n = document.querySelector(`[data-step="${lines[i].s}"]`);
+        document.querySelectorAll(".node").forEach(x => x.classList.remove("live"));
+        n.classList.add("live");
+        log.innerHTML += (i ? "\n" : "") + `<span class="hi">0${i+1}</span>  ${lines[i].t}`;
+        i += 1;
+        timer = setTimeout(tick, 420);
+      };
+      tick();
+    }
+
+    function runGood(btn) {
+      clearTimeout(timer);
+      clearNodes();
+      btn.classList.add("active");
+      const lines = [
+        { s: "spec", t: "read SPEC.md · preserves-sum, no-overdraft" },
+        { s: "search", t: "Impl is the good model\nsmall grid: no witness" },
+        { s: "cert", t: "no Violation.lean written" },
+        { s: "lean", t: "lake build corpus only" },
+        { s: "verdict", t: "APPROVE. We could not certify a bug.\nThat is not a proof of correctness." },
+      ];
+      let i = 0;
+      log.textContent = "";
+      const tick = () => {
+        if (i >= lines.length) {
+          document.querySelector('[data-step="verdict"]').classList.add("ok");
+          ok.classList.add("on-ok");
+          return;
+        }
+        const n = document.querySelector(`[data-step="${lines[i].s}"]`);
+        document.querySelectorAll(".node").forEach(x => x.classList.remove("live"));
+        n.classList.add("live");
+        log.innerHTML += (i ? "\n" : "") + `<span class="hi">0${i+1}</span>  ${lines[i].t}`;
+        i += 1;
+        timer = setTimeout(tick, 420);
+      };
+      tick();
+    }
+  </script>
+</body>
+</html>
