@@ -1,20 +1,14 @@
 # Noether Gate
 
-A plugin that **retells a PR in Lean** so humans and agents can check in the understanding.
+Every pull request must bring a Lean contract in `plugin/retellings/`.
+That file is the story of the change: what it may do, and what it must never do.
 
-Either the old rules still hold, or the PR is updating the contract and that update is the review.
-Lean cannot read the other language. The retelling is what we check in.
+CI checks the contract is there, Lean accepts it, nothing is unfinished, and it does not prove a contradiction.
+A person reads the Lean. That is the review.
 
-The examples below are a lab bench for the deny path. They are not the product.
+The examples below are a lab bench for an older deny path. They are not the product.
 
-If Lean accepts a proof of a violation, the PR is denied.
-If no violation is proved, the check stays green. That is not a proof of correctness.
-It is "we could not certify a bug."
-
-This repo is an experimental scratch space: three examples (easy / medium / hard)
-plus a tiny corpus tool so agents can grow helper lemmas per example.
-
-How it works: [live explainer](https://ngundotra.github.io/noether-gate/) (tap a fixture on your phone) or [docs/how-it-works.md](docs/how-it-works.md).
+How it works: [live explainer](https://ngundotra.github.io/noether-gate/) or [docs/how-it-works.md](docs/how-it-works.md).
 
 ## Examples
 

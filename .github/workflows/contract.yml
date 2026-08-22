@@ -1,0 +1,28 @@
+name: Contract
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Collect changed files
+        run: |
+          git fetch --no-tags origin "${{ github.base_ref }}"
+          git diff --name-only "origin/${{ github.base_ref }}...HEAD" | tee /tmp/changed.txt
+
+      - uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: plugin/retellings
+          test: false
+          lint: false
+
+      - name: Check the contract
+        run: python3 scripts/check_contract.py --pr-files /tmp/changed.txt

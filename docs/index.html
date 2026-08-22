@@ -35,40 +35,37 @@
 </head>
 <body>
   <div class="wrap">
-    <div class="kicker">the plugin</div>
-    <h1>Retell the PR in Lean.<br /><em>That is what we check in.</em></h1>
+    <div class="kicker">the rule</div>
+    <h1>Every PR brings a Lean contract.<br /><em>You read the Lean.</em></h1>
     <p>
-      Lean cannot read your program. So we do not ask it to.
-      A plugin writes a short Lean retelling of what the change is allowed to do.
-      <strong>If a person cannot read that retelling and agree, stop.</strong>
-      That agreement is the point. Humans and agents argue about the retelling, not the raw diff.
+      The contract is the story of the change: what it may do, and what it must never do.
+      CI checks that the contract is there and that Lean accepts it — not the generated code.
+      <strong>A person reads the Lean. That is the review.</strong>
     </p>
 
-    <h2>What the plugin does on a PR</h2>
+    <h2>What happens on a PR</h2>
     <div class="card">
-      <h3>1 · retell</h3>
-      <p>Here is this change, said in Lean, in a page a person can review. What it may do. What it must never do.</p>
+      <h3>1 · bring a contract</h3>
+      <p>Check in a Lean file under plugin/retellings. Say what the change may do and what it must never do.</p>
     </div>
     <div class="two">
       <div class="card">
         <h3 class="ok">2a · still matches</h3>
-        <p>The proof attempt says the old rules still hold. The retelling did not change the contract. You can merge the understanding as-is.</p>
+        <p>The contract still matches the old rules. The change did not move the line.</p>
       </div>
       <div class="card">
-        <h3 class="bad">2b · the rules changed</h3>
-        <p>The proof attempt says this PR updates the contract. That is fine only if you meant to. The spec change is the thing you review.</p>
+        <h3 class="bad">2b · the contract changed</h3>
+        <p>The contract itself moved. That is fine only if you meant to. The new contract is what you review.</p>
       </div>
     </div>
 
-    <h2>Why trust the retelling</h2>
+    <h2>What CI checks</h2>
     <p>
-      Because that is the only place Lean and the team share a language.
-      We will not get a magic bridge from Python to Lean.
-      We get a retelling clear enough that a human says “yes, that is what I meant,”
-      and an agent is stuck with that meaning when it writes the rest.
+      That a contract file is on the PR. That Lean accepts it. That nothing is unfinished.
+      That the contract does not prove a contradiction.
     </p>
     <p>
-      If the retelling is mush, none of this works. The plugin’s job is to make that obvious.
+      CI does not read the product code for you. You do, by reading the Lean.
     </p>
 
     <footer>

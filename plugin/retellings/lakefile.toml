@@ -1,0 +1,8 @@
+name = "retellings"
+defaultTargets = ["Retellings"]
+
+# New contracts: add the module to roots and import it in Retellings.lean.
+[[lean_lib]]
+name = "Retellings"
+srcDir = "."
+roots = ["Retellings", "Sample", "PR1"]
