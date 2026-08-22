@@ -1,85 +1,109 @@
 /-!
-  Retelling of https://github.com/ngundotra/noether-gate/pull/1
+  # Send with retries
 
-  The send now takes a retry count. Each retry sends `amount` again
-  if the source still has enough.
+  This file is the contract. If you cannot agree with it, stop.
+
+  You are agreeing to three rules:
+
+  1. A send never creates or destroys money.
+  2. A send never takes more than the source has.
+  3. If you ask for retries, each retry pays the same amount again
+     from the source, only while the source still has enough.
+
+  Concrete check, so we mean the same numbers:
+
+  * start 10 and 10, send 5 once            →  5 and 15
+  * start 10 and 10, send 5 with one retry  →  0 and 20
 -/
-namespace PR1
 
-/-- One more send of `amount`, or no-op if the source cannot pay. -/
-def retryOnce (src dst amount : Nat) : Nat × Nat :=
-  if amount ≤ src then (src - amount, dst + amount) else (src, dst)
+namespace Send
 
-/-- Extra sends after the first one already happened. -/
-def applyRetries (src dst amount : Nat) : Nat → Nat × Nat
-  | 0 => (src, dst)
-  | n + 1 =>
-    let p := retryOnce src dst amount
-    applyRetries p.1 p.2 amount n
+/-- Two balances: who pays, and who receives. -/
+structure Pair where
+  source : Nat
+  dest : Nat
 
-/-- Model of `transfer` after the PR. -/
-def transfer (source dest amount retries : Nat) : Option (Nat × Nat) :=
-  if amount ≤ source then
-    some (applyRetries (source - amount) (dest + amount) amount retries)
+/-- Pay `amount` once. Refuse if the source cannot cover it. -/
+def payOnce (p : Pair) (amount : Nat) : Option Pair :=
+  if amount ≤ p.source then
+    some { source := p.source - amount, dest := p.dest + amount }
   else
     none
 
-/-- Do not create or destroy money. -/
-def PreservesSum (f : Nat → Nat → Nat → Nat → Option (Nat × Nat)) : Prop :=
-  ∀ source dest amount retries s' d',
-    f source dest amount retries = some (s', d') → s' + d' = source + dest
+/--
+  Pay once, then pay that same amount again `retries` times.
+  A retry that the source cannot cover is skipped. The first pay
+  still has to succeed, or the whole send is refused.
+-/
+def send (p : Pair) (amount : Nat) : Nat → Option Pair
+  | 0 => payOnce p amount
+  | n + 1 =>
+    match send p amount n with
+    | none => none
+    | some mid =>
+      match payOnce mid amount with
+      | none => some mid
+      | some done => some done
 
-/-- Reject an overdraft. Nothing changes. -/
-def NoOverdraft (f : Nat → Nat → Nat → Nat → Option (Nat × Nat)) : Prop :=
-  ∀ source dest amount retries, source < amount → f source dest amount retries = none
+/-! ## The numbers a person can check -/
 
-/-- Old one-shot rule: a transfer moves `amount` once. -/
-def MovesAmount (f : Nat → Nat → Nat → Nat → Option (Nat × Nat)) : Prop :=
-  ∀ source dest amount retries,
-    match f source dest amount retries with
-    | none => True
-    | some (s', d') => s' + amount = source ∧ d' = dest + amount
+/-- Start 10 and 10. Send 5. You get 5 and 15. -/
+theorem start_10_10_send_5 :
+    send { source := 10, dest := 10 } 5 0 =
+      some { source := 5, dest := 15 } := rfl
 
-theorem retryOnce_sum (src dst amount : Nat) :
-    (retryOnce src dst amount).1 + (retryOnce src dst amount).2 = src + dst := by
-  by_cases h : amount ≤ src
-  · simp [retryOnce, h]; omega
-  · simp [retryOnce, h]
+/-- Same start. Send 5 with one retry. You get 0 and 20. -/
+theorem start_10_10_send_5_with_one_retry :
+    send { source := 10, dest := 10 } 5 1 =
+      some { source := 0, dest := 20 } := rfl
 
-theorem applyRetries_sum (src dst amount n : Nat) :
-    (applyRetries src dst amount n).1 + (applyRetries src dst amount n).2 = src + dst := by
-  induction n generalizing src dst with
-  | zero => simp [applyRetries]
+/-! ## The rules you are signing -/
+
+theorem payOnce_keeps_the_sum
+    (p : Pair) (amount : Nat) (q : Pair)
+    (ok : payOnce p amount = some q) :
+    q.source + q.dest = p.source + p.dest := by
+  unfold payOnce at ok
+  split at ok
+  · next _ =>
+    injection ok with h
+    subst h
+    simp
+    omega
+  · cases ok
+
+/-- After a successful send, the two sides still add up. -/
+theorem never_creates_money
+    (start : Pair) (amount retries : Nat) (finish : Pair)
+    (ok : send start amount retries = some finish) :
+    finish.source + finish.dest = start.source + start.dest := by
+  induction retries generalizing finish with
+  | zero =>
+    exact payOnce_keeps_the_sum start amount finish (by simpa [send] using ok)
   | succ n ih =>
-    simp [applyRetries]
-    exact (ih _ _).trans (retryOnce_sum src dst amount)
+    cases hMid : send start amount n with
+    | none => simp [send, hMid] at ok
+    | some mid =>
+      cases hPay : payOnce mid amount with
+      | none =>
+        simp [send, hMid, hPay] at ok
+        subst ok
+        exact ih mid hMid
+      | some done =>
+        simp [send, hMid, hPay] at ok
+        subst ok
+        have hMidSum := ih mid hMid
+        have hPaySum := payOnce_keeps_the_sum mid amount done hPay
+        omega
 
-theorem transfer_preserves_sum : PreservesSum transfer := by
-  intro source dest amount retries s' d' ht
-  by_cases h : amount ≤ source
-  · simp [transfer, h] at ht
-    have hsum := applyRetries_sum (source - amount) (dest + amount) amount retries
-    rw [ht] at hsum
-    have hcancel : (source - amount) + (dest + amount) = source + dest := by omega
-    exact hsum.trans hcancel
-  · simp [transfer, h] at ht
+/-- If the source cannot cover the first amount, the send is refused. -/
+theorem never_accepts_an_overdraft
+    (start : Pair) (amount retries : Nat)
+    (too_big : start.source < amount) :
+    send start amount retries = none := by
+  have hnot : ¬ amount ≤ start.source := Nat.not_le_of_gt too_big
+  induction retries with
+  | zero => simp [send, payOnce, hnot]
+  | succ n ih => simp [send, ih]
 
-theorem transfer_no_overdraft : NoOverdraft transfer := by
-  intro source dest amount retries hlt
-  have : ¬ amount ≤ source := Nat.not_le_of_gt hlt
-  simp [transfer, this]
-
-theorem send_once : transfer 10 10 5 0 = some (5, 15) := rfl
-
-theorem send_with_retry : transfer 10 10 5 1 = some (0, 20) := rfl
-
-/-- Start 10 and 10, send 5 with one retry: not the one-shot pair. -/
-theorem totals_no_longer_match : transfer 10 10 5 1 ≠ transfer 10 10 5 0 := by
-  simp [send_with_retry, send_once]
-
-/-- The old “moves `amount` once” rule is false after this PR. -/
-theorem not_moves_amount : ¬ MovesAmount transfer := by
-  intro h
-  simpa [transfer, applyRetries, retryOnce] using h 10 10 5 1
-
-end PR1
+end Send
