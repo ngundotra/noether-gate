@@ -111,3 +111,23 @@ def patch_lean_to_bad(text: str) -> str:
     if needle not in text:
         return text
     return text.replace(needle, repl, 1)
+
+
+def patch_lean_to_backwards(text: str) -> str:
+    needle = "| .paid, .shipped => some .shipped"
+    repl = "| .paid, .shipped => some .shipped\n  | .paid, .pending => some .pending"
+    return text.replace(needle, repl, 1) if needle in text else text
+
+
+def patch_lean_to_cancel_closed(text: str) -> str:
+    needle = "| .paid, .cancelled => some .cancelled"
+    repl = "| .paid, .cancelled => some .cancelled\n  | .shipped, .cancelled => some .cancelled"
+    return text.replace(needle, repl, 1) if needle in text else text
+
+
+def bad_cases():
+    return [
+        ("fixtures/bad_orders.py", patch_lean_to_bad),
+        ("fixtures/bad_backwards.py", patch_lean_to_backwards),
+        ("fixtures/bad_cancel_closed.py", patch_lean_to_cancel_closed),
+    ]

@@ -28,12 +28,16 @@ examples/<name>/
   search.py            witness search + Lean certificate writer
 ```
 
-`--use-bad-fixture` runs every pair in `search.py`'s `bad_cases()` (falls back to one `BAD_IMPL`). Easy-ledger has two:
+`--use-bad-fixture` runs every pair in `search.py`'s `bad_cases()` (falls back to one `BAD_IMPL`).
 
-| fixture | what it does | bullet that should deny |
-|---|---|---|
-| `fixtures/bad_ledger.py` | mints `+1` on dest | `preserves-sum` |
-| `fixtures/bad_overdraft.py` | accepts an overdraft as a no-op | `no-overdraft` |
+| example | fixture | what it does | bullet that should deny |
+|---|---|---|---|
+| `easy-ledger` | `fixtures/bad_ledger.py` | mints `+1` on dest | `preserves-sum` |
+| `easy-ledger` | `fixtures/bad_overdraft.py` | accepts an overdraft as a no-op | `no-overdraft` |
+| `medium-orders` | `fixtures/bad_orders.py` | `pending → shipped` | `no-skip` |
+| `medium-orders` | `fixtures/bad_backwards.py` | `paid → pending` | `no-backwards` |
+| `medium-orders` | `fixtures/bad_cancel_closed.py` | `shipped → cancelled` | `cancel-only-open` |
+| `hard-journal` | `fixtures/bad_journal.py` | refund bigger than its charge | `refunds-bounded` |
 
 ## Run the gate
 
