@@ -26,10 +26,8 @@ def transfer (source dest amount retries : Nat) : Option (Nat × Nat) :=
 
 /-- Do not create or destroy money. -/
 def PreservesSum (f : Nat → Nat → Nat → Nat → Option (Nat × Nat)) : Prop :=
-  ∀ source dest amount retries,
-    match f source dest amount retries with
-    | none => True
-    | some (s', d') => s' + d' = source + dest
+  ∀ source dest amount retries s' d',
+    f source dest amount retries = some (s', d') → s' + d' = source + dest
 
 /-- Reject an overdraft. Nothing changes. -/
 def NoOverdraft (f : Nat → Nat → Nat → Nat → Option (Nat × Nat)) : Prop :=
@@ -44,34 +42,32 @@ def MovesAmount (f : Nat → Nat → Nat → Nat → Option (Nat × Nat)) : Prop
 
 theorem retryOnce_sum (src dst amount : Nat) :
     (retryOnce src dst amount).1 + (retryOnce src dst amount).2 = src + dst := by
-  unfold retryOnce
-  split_ifs <;> omega
+  by_cases h : amount ≤ src
+  · simp [retryOnce, h]; omega
+  · simp [retryOnce, h]
 
 theorem applyRetries_sum (src dst amount n : Nat) :
     (applyRetries src dst amount n).1 + (applyRetries src dst amount n).2 = src + dst := by
   induction n generalizing src dst with
-  | zero => rfl
+  | zero => simp [applyRetries]
   | succ n ih =>
-    unfold applyRetries
-    calc
-      _ = (retryOnce src dst amount).1 + (retryOnce src dst amount).2 := ih
-      _ = src + dst := retryOnce_sum src dst amount
+    simp [applyRetries]
+    exact (ih _ _).trans (retryOnce_sum src dst amount)
 
 theorem transfer_preserves_sum : PreservesSum transfer := by
-  intro source dest amount retries
-  unfold transfer
-  split_ifs with h
-  · simp
-    have := applyRetries_sum (source - amount) (dest + amount) amount retries
-    omega
-  · trivial
+  intro source dest amount retries s' d' ht
+  by_cases h : amount ≤ source
+  · simp [transfer, h] at ht
+    have hsum := applyRetries_sum (source - amount) (dest + amount) amount retries
+    rw [ht] at hsum
+    have hcancel : (source - amount) + (dest + amount) = source + dest := by omega
+    exact hsum.trans hcancel
+  · simp [transfer, h] at ht
 
 theorem transfer_no_overdraft : NoOverdraft transfer := by
   intro source dest amount retries hlt
-  unfold transfer
-  split_ifs with h
-  · exact (Nat.not_le_of_lt hlt h).elim
-  · rfl
+  have : ¬ amount ≤ source := Nat.not_le_of_gt hlt
+  simp [transfer, this]
 
 theorem send_once : transfer 10 10 5 0 = some (5, 15) := rfl
 
