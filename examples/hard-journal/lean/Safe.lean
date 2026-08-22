@@ -30,4 +30,15 @@ theorem impl_refunds_bounded : RefundsBounded Impl := by
   · simp [h, sumRefunds, sumCharges, charge, refund]
     omega
 
+theorem impl_refund_missing (journal : List Entry) (entry : Entry)
+    (hk : entry.kind = .refund)
+    (hfind : findCharge entry.chargeId journal = none) :
+    Impl journal entry = none := by
+  simp [Impl, hk, hfind]
+
+theorem impl_charge_zero (journal : List Entry) (entry : Entry)
+    (hk : entry.kind = .charge) (hz : entry.amount = 0) :
+    Impl journal entry = none := by
+  simp [Impl, hk, hz]
+
 end HardJournal
