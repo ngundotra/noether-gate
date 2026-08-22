@@ -16,7 +16,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: leanprover/lean-action@v1
         with:
-          directory: examples/${{ matrix.example }}/lean
+          lake-package-directory: examples/${{ matrix.example }}/lean
+          test: false
+          lint: false
       - name: Search for a proved violation
         run: python3 scripts/gate.py --example ${{ matrix.example }}
 
@@ -30,7 +32,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: leanprover/lean-action@v1
         with:
-          directory: examples/${{ matrix.example }}/lean
+          lake-package-directory: examples/${{ matrix.example }}/lean
           build: false
+          test: false
+          lint: false
       - name: Expect Lean to accept a violation proof
         run: python3 scripts/gate.py --example ${{ matrix.example }} --use-bad-fixture --expect-deny
